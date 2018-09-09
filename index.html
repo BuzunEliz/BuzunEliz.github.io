@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Task</title>
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+    <style>
+        .content{
+            font-family: Geneva, Arial, Helvetica, sans-serif;
+        }
+        .bike-points__item{
+            background-color: #9ba2c0;
+            border: 1px solid #9ba2c0;
+            border-radius: 4px;
+            margin: 10px 20px 20px 20px;
+        }
+
+        .bike-points__name{
+            font-size: 1.6em;
+            margin: 10px 0px 10px 30px;
+        }
+
+        .bike-points__counter{
+            font-size: 1.2em;
+            margin: 10px 0px 10px 20px;
+        }
+        .bike-points-condition{
+            background-color: white;
+            border-radius: 4px;
+            margin: 0px 30px 20px 30px;
+            padding: 10px;
+        }
+        .search-field{
+            border: 0px;
+            box-shadow: 0 3px 8px 0 rgba(0,0,0,0.2),
+            0 0 0 1px rgba(0,0,0,0.08);
+            font-family: Arial,sans-serif;
+            margin: auto;
+            width: 70%;
+            height: 40px;
+        }
+        input {outline: 0 !important;}
+        input{
+            border: 0px;
+            height: 37px;
+            float: left;
+            margin: 0 0 0 2%;
+            width: 80%;
+        }
+        .search-button {outline: 0 !important;}
+        .search-button{
+            background-color: #888fac;
+            border: 0px;
+            box-shadow: 0 3px 8px 0 rgba(0,0,0,0.2),
+            0 0 0 1px rgba(0,0,0,0.08);
+            height: 40px;
+            text-shadow: #eadbff 0 0 10px;
+            font-size: 1.2em;
+            float: right;
+            width: 18%;
+        }
+        .search-button:active{
+            background-color: #9ba2c0;
+            border: 0px;
+            box-shadow: 0 3px 8px 0 rgba(0,0,0,0.2),
+            0 0 0 1px rgba(0,0,0,0.08);
+        }
+        h2{
+            text-align: center;
+        }
+        span{
+            float: right;
+        }
+        .bike-points__failure{
+            margin: 0 0 0 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+    class TextInput extends React.Component {
+        constructor(props) {
+            super(props)
+            this.input = React.createRef()
+        }
+        onBtnClickHandler = () => {
+            fetch('https://api.tfl.gov.uk/BikePoint/Search?query='+this.input.current.value)
+                .then(response => response.json())
+                .then(data => {this.props.updateData(data)})
+
+        }
+        render() {
+            return (
+                <React.Fragment>
+                    <div className='search-field'>
+                        <input
+                            defaultValue=''
+                            ref={this.input}
+                        />
+                    <button className="search-button" onClick={this.onBtnClickHandler}>Search</button>
+                    </div>
+                </React.Fragment>
+            )
+        }
+    }
+    class BikePoints extends React.Component {
+        render() {
+            const data=this.props.data
+            let pointsTemplate
+            if (data.length>0) {
+                pointsTemplate = data.map(function(item) {
+                    return (
+                        <div className="bike-points__item" key={item.id}>
+                            <p className="bike-points__name">{item.commonName}</p>
+                            <BikePointCondition bikeId={item.id}/>
+                        </div>
+                    )
+                })
+            } else {
+               pointsTemplate = <p className="bike-points__failure">Your search did not match any bike stations. So just take a deep breath, breathe through it, try again.</p>
+            }
+            return (
+                <div className="bike-points">
+                    <p className="bike-points__counter">Results: {data.length}</p>
+                    {pointsTemplate}
+                </div>
+            );
+        }
+    }
+    class BikePointCondition extends React.Component {
+        state = {
+            condition: [],
+        }
+        componentDidMount(){
+            fetch('https://api.tfl.gov.uk/BikePoint/'+this.props.bikeId)
+                .then(response => response.json())
+                .then(data => {this.setState({condition: data})})
+        }
+        render() {
+            const data=this.state.condition
+            let pointsTemplate
+            if (Object.keys(data).length !== 0) {
+                pointsTemplate = <div key={data.id}>
+                    <div  className="bike-points-condition__nb-bikes">
+                        <p>Bikes for hire: <span>{data.additionalProperties[6].value}</span></p>
+                    </div>
+                    <div  className="bike-points-condition__nb-empty-docks">
+                        <p>Empty docking bays: <span>{data.additionalProperties[7].value}</span></p>
+                    </div>
+                    <div  className="bike-points-condition__nb-docks">
+                        <p>Total capacity at this docking station is: <span>{data.additionalProperties[8].value}</span></p>
+                    </div>
+                </div>
+            } else {
+                pointsTemplate = <p>Loading</p>
+            }
+            return (
+                <div className="bike-points-condition">
+                    {pointsTemplate}
+                </div>
+            );
+        }
+    }
+    class App extends React.Component {
+        state = {
+            visible: false,
+            textEntered: false,
+            bikePoints: [],
+        }
+        updateData = (value) => {
+            this.setState({ bikePoints: value, visible: true, textEntered:true })
+        }
+
+        render() {
+            let pointsTemplate
+            if (this.state.textEntered) {
+                pointsTemplate = <BikePoints data={this.state.bikePoints}/>
+            }
+            return (
+                <div className="content">
+                    <h2>Search for bike stations by their name</h2>
+                    <TextInput updateData={this.updateData}/>
+                    {pointsTemplate}
+                </div>
+            )
+        }
+    }
+    ReactDOM.render(
+        <App />,
+        document.getElementById('app')
+    );
+</script>
+</body>
+</html>
